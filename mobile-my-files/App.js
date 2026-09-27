@@ -23,7 +23,7 @@ import { assessRisk, RiskLevel } from './collisionRisk';
 // phone can't resolve that to your computer). Find it with:
 //   Mac/Linux: ifconfig | grep "inet "
 //   Windows:   ipconfig
-const SERVER_URL = 'ws://172.20.10.13:8080';
+const SERVER_URL = 'ws://YOUR_COMPUTER_LAN_IP:8080';
 
 // Hardcoded for v1 — no accounts system yet (per roadmap step 1 scope cut).
 const DEVICE_ID = 'phone-1';

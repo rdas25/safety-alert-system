@@ -9,15 +9,10 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs your location to detect nearby collision risks and show you on the map."
-      },
-      "bundleIdentifier": "com.anonymous.collisionalertmobile"
+      }
     },
     "android": {
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
-      ],
-      "package": "com.anonymous.collisionalertmobile"
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     }
   }
 }
