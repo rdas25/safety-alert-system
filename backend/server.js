@@ -98,6 +98,8 @@ wss.on('connection', (socket) => {
     deviceStates.set(deviceId, state);
     socketToDeviceId.set(socket, deviceId);
 
+    console.log(`Update from ${deviceId}: ${lat.toFixed(5)}, ${lon.toFixed(5)}, ${speed.toFixed(1)} m/s`);
+
     broadcastDeviceState(deviceId, state, socket);
   });
 
