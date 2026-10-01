@@ -1,64 +1,59 @@
 #!/usr/bin/env node
-// ghost_car.mjs — compute a "ghost car" start position + heading that puts a
-// simulated agent on a head-on collision course with your (stationary) phone,
-// then print the exact simulated_agent.mjs command to run.
-//
-// Usage:
-//   node ghost_car.mjs <phoneLat> <phoneLon> [distanceM=90] [approachBearingDeg=random] [ghostSpeedMps=6]
-//
-// Example:
-//   node ghost_car.mjs 40.4237 -86.9212
-//   node ghost_car.mjs 40.4237 -86.9212 100 270 8     // ghost starts due WEST of you, drives east
-//
-// Conventions: bearings are compass degrees (0 = north, 90 = east, clockwise).
-// "approachBearing" = the direction FROM your phone TO where the ghost starts.
+// Usage (from simulation/):
+//   node ghost_car.mjs <phoneLat> <phoneLon> [speedMps=6] [distanceM=90] [approachBearingDeg=random] [missM=0]
+// Add --print to only print the command instead of running it.
 
-const METERS_PER_DEG_LAT = 111_320; // close enough at these distances
+import { spawn } from "node:child_process";
 
-const [latArg, lonArg, distArg, bearArg, speedArg] = process.argv.slice(2);
+const METERS_PER_DEG_LAT = 111_320;
+const args = process.argv.slice(2).filter((a) => a !== "--print");
+const printOnly = process.argv.includes("--print");
+const [latArg, lonArg, speedArg, distArg, bearArg, missArg] = args;
 
 if (latArg === undefined || lonArg === undefined) {
-  console.error(
-    "Usage: node ghost_car.mjs <phoneLat> <phoneLon> [distanceM=90] [approachBearingDeg=random] [ghostSpeedMps=6]"
-  );
+  console.error("Usage: node ghost_car.mjs <phoneLat> <phoneLon> [speedMps=6] [distanceM=90] [approachBearingDeg=random] [missM=0] [--print]");
   process.exit(1);
 }
 
 const phoneLat = parseFloat(latArg);
 const phoneLon = parseFloat(lonArg);
-const distanceM = distArg !== undefined ? parseFloat(distArg) : 90;
-const approachBearing =
-  bearArg !== undefined ? parseFloat(bearArg) : Math.floor(Math.random() * 360);
 const ghostSpeed = speedArg !== undefined ? parseFloat(speedArg) : 6;
+const distanceM = distArg !== undefined ? parseFloat(distArg) : 90;
+const approachBearing = bearArg !== undefined ? parseFloat(bearArg) : Math.floor(Math.random() * 360);
+const missM = missArg !== undefined ? parseFloat(missArg) : 0;
 
-if ([phoneLat, phoneLon, distanceM, approachBearing, ghostSpeed].some(Number.isNaN)) {
+if ([phoneLat, phoneLon, ghostSpeed, distanceM, approachBearing, missM].some(Number.isNaN)) {
   console.error("All arguments must be numbers.");
   process.exit(1);
 }
 
-const toRad = (deg) => (deg * Math.PI) / 180;
+const toRad = (d) => (d * Math.PI) / 180;
 
-// Local flat-meter offsets of the ghost's start point relative to the phone.
-const north = distanceM * Math.cos(toRad(approachBearing));
-const east = distanceM * Math.sin(toRad(approachBearing));
+// Start distanceM away along the approach bearing, then shift missM sideways
+// (bearing + 90) so the straight-line path passes you at ~missM.
+let north = distanceM * Math.cos(toRad(approachBearing));
+let east = distanceM * Math.sin(toRad(approachBearing));
+north += missM * Math.cos(toRad(approachBearing + 90));
+east += missM * Math.sin(toRad(approachBearing + 90));
 
-// Convert meters back to degrees. A degree of longitude shrinks with latitude.
 const metersPerDegLon = METERS_PER_DEG_LAT * Math.cos(toRad(phoneLat));
-const ghostLat = phoneLat + north / METERS_PER_DEG_LAT;
-const ghostLon = phoneLon + east / metersPerDegLon;
+const ghostLat = (phoneLat + north / METERS_PER_DEG_LAT).toFixed(6);
+const ghostLon = (phoneLon + east / metersPerDegLon).toFixed(6);
+const ghostHeading = ((approachBearing + 180) % 360).toFixed(1);
 
-// The ghost drives straight back at the phone: exactly opposite the approach bearing.
-const ghostHeading = (approachBearing + 180) % 360;
-
-const timeToArrival = distanceM / ghostSpeed;
-
-console.log(`Phone:  ${phoneLat}, ${phoneLon}`);
+console.log(`Phone: ${phoneLat}, ${phoneLon}`);
 console.log(
-  `Ghost starts ${distanceM} m away at bearing ${approachBearing.toFixed(0)}°, ` +
-    `heading ${ghostHeading.toFixed(0)}° at ${ghostSpeed} m/s ` +
-    `(reaches you in ~${timeToArrival.toFixed(1)} s)\n`
+  `Ghost starts ${distanceM} m away at bearing ${approachBearing.toFixed(0)}°, heading ${ghostHeading}° at ${ghostSpeed} m/s, ` +
+    `passing you at ~${Math.abs(missM)} m (reaches you in ~${(distanceM / ghostSpeed).toFixed(1)} s)\n`
 );
-console.log("Run this (server must be up and the app open on your phone):\n");
-console.log(
-  `node simulated_agent.mjs ghost-car ${ghostLat.toFixed(6)} ${ghostLon.toFixed(6)} ${ghostHeading.toFixed(1)} ${ghostSpeed}`
-);
+
+const cmdArgs = ["simulated_agent.mjs", "ghost-car", ghostLat, ghostLon, ghostHeading, String(ghostSpeed)];
+
+if (printOnly) {
+  console.log(`node ${cmdArgs.join(" ")}`);
+} else {
+  console.log("Launching ghost... (Ctrl+C to stop)\n");
+  const child = spawn("node", cmdArgs, { stdio: "inherit" });
+  child.on("exit", (code) => process.exit(code ?? 0));
+  process.on("SIGINT", () => child.kill("SIGINT"));
+}

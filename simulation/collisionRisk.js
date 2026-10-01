@@ -3,27 +3,30 @@
  * ------------------
  * JavaScript port of the collision_risk.py algorithm, so the same
  * closest-point-of-approach (CPA) math can run directly on the phone.
- *
- * Kept deliberately parallel in structure to the Python version so it's
- * easy to compare the two and confirm they agree (same math, same
- * thresholds, same logic — just a different language).
  */
 
 const EARTH_RADIUS_M = 6371000.0;
 
-// Same thresholds as the Python version. Keep these two files in sync
-// if you tune them later — that's a known duplication to clean up
-// once things stabilize (e.g. by sharing a config file or moving the
-// thresholds server-side).
 export const HIGH_RISK_DISTANCE_M = 3.0;
 export const MODERATE_RISK_DISTANCE_M = 8.0;
 export const MAX_LOOKAHEAD_S = 15.0;
+
+// Speed gate (placeholders, tune with pilot data): at least one agent must be
+// moving fast enough to be a real hazard, and the pair must actually be
+// moving relative to each other. Two walkers on a sidewalk never alert.
+export const MIN_THREAT_SPEED_MPS = 3.0; // ~6.7 mph
+export const MIN_REL_SPEED_MPS = 1.0;
 
 export const RiskLevel = {
   NONE: 'none',
   MODERATE: 'moderate',
   HIGH: 'high',
 };
+
+// GPS speed can be null/undefined/NaN/-1. Treat anything unusable as 0.
+function cleanSpeed(speed) {
+  return Number.isFinite(speed) && speed > 0 ? speed : 0;
+}
 
 function toRadians(deg) {
   return (deg * Math.PI) / 180;
@@ -45,7 +48,7 @@ function headingSpeedToVelocity(headingDeg, speedMps) {
 
 /**
  * agentA / agentB: { lat, lon, headingDeg, speedMps }
- * Returns { tCpaS, distAtCpaM }
+ * Returns { tCpaS, distAtCpaM, relSpeedMps }
  */
 export function computeCpa(agentA, agentB) {
   const b = latLonToLocalXY(agentB.lat, agentB.lon, agentA.lat, agentA.lon);
@@ -61,7 +64,7 @@ export function computeCpa(agentA, agentB) {
 
   if (relSpeedSq < 1e-6) {
     const currentDist = Math.hypot(rx, ry);
-    return { tCpaS: 0.0, distAtCpaM: currentDist };
+    return { tCpaS: 0.0, distAtCpaM: currentDist, relSpeedMps: Math.sqrt(relSpeedSq) };
   }
 
   const tCpa = -(rx * rvx + ry * rvy) / relSpeedSq;
@@ -69,16 +72,23 @@ export function computeCpa(agentA, agentB) {
   const cpaY = ry + rvy * tCpa;
   const distAtCpa = Math.hypot(cpaX, cpaY);
 
-  return { tCpaS: tCpa, distAtCpaM: distAtCpa };
+  return { tCpaS: tCpa, distAtCpaM: distAtCpa, relSpeedMps: Math.sqrt(relSpeedSq) };
 }
 
 /**
  * Returns { riskLevel, tCpaS, distAtCpaM }
  */
 export function assessRisk(agentA, agentB) {
-  const { tCpaS, distAtCpaM } = computeCpa(agentA, agentB);
+  const { tCpaS, distAtCpaM, relSpeedMps } = computeCpa(agentA, agentB);
 
   if (tCpaS < 0 || tCpaS > MAX_LOOKAHEAD_S) {
+    return { riskLevel: RiskLevel.NONE, tCpaS, distAtCpaM };
+  }
+
+  // Speed gate: the faster of the two agents (either one can be "me") must be
+  // a real hazard, and they must be moving relative to each other.
+  const fastest = Math.max(cleanSpeed(agentA.speedMps), cleanSpeed(agentB.speedMps));
+  if (fastest < MIN_THREAT_SPEED_MPS || relSpeedMps < MIN_REL_SPEED_MPS) {
     return { riskLevel: RiskLevel.NONE, tCpaS, distAtCpaM };
   }
 
