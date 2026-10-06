@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safety Alert - live dashboard</title>
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 16px; background: #111; color: #eee; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  #conn { font-size: 13px; color: #aaa; margin-bottom: 12px; }
+  table { border-collapse: collapse; margin-bottom: 16px; font-size: 13px; width: 100%; }
+  th, td { border: 1px solid #333; padding: 4px 8px; text-align: left; white-space: nowrap; }
+  th { background: #222; }
+  .NONE { color: #7c7; } .LOW { color: #dd5; } .MODERATE { color: #f93; }
+  .HIGH { color: #f55; } .CRITICAL { color: #fff; background: #b00; }
+  .stale { opacity: 0.45; }
+  canvas { background: #1b1b1b; border: 1px solid #333; width: 100%; max-width: 700px; height: auto; }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<h1>Safety Alert - live dashboard <span id="profile"></span></h1>
+<div id="conn">connecting...</div>
+
+<h3>Devices</h3>
+<div class="wrap"><table id="devices"></table></div>
+<h3>Pairs</h3>
+<div class="wrap"><table id="pairs"></table></div>
+<h3>Map (meters, north up; arrows = 5 s of travel)</h3>
+<canvas id="map" width="700" height="500"></canvas>
+
+<script>
+const COLORS = { NONE: '#7c7', LOW: '#dd5', MODERATE: '#f93', HIGH: '#f55', CRITICAL: '#fff' };
+const R = 6371000;
+let ws = null;
+
+function connect() {
+  ws = new WebSocket('ws://' + location.host);
+  ws.onopen = () => { document.getElementById('conn').textContent = 'connected'; ws.send(JSON.stringify({ type: 'observe' })); };
+  ws.onclose = () => { document.getElementById('conn').textContent = 'disconnected, retrying...'; setTimeout(connect, 1000); };
+  ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'dashboard') render(m); };
+}
+
+function cell(v, cls) { return '<td' + (cls ? ' class="' + cls + '"' : '') + '>' + v + '</td>'; }
+const f = (v, n) => (v === null || v === undefined ? 'n/a' : Number(v).toFixed(n));
+
+function render(m) {
+  document.getElementById('profile').textContent = '(profile: ' + m.profile + ')';
+  let t = '<tr><th>id</th><th>role</th><th>lat</th><th>lon</th><th>speed m/s</th><th>heading</th><th>GPS acc m</th><th>age ms</th></tr>';
+  m.devices.forEach((d) => {
+    t += '<tr class="' + (d.stale ? 'stale' : '') + '">' + cell(d.id) + cell(d.role) + cell(f(d.lat, 6)) + cell(f(d.lon, 6)) +
+      cell(f(d.speed, 2)) + cell(f(d.heading, 0)) + cell(f(d.accuracy, 1)) + cell(d.ageMs + (d.stale ? ' STALE' : '')) + '</tr>';
+  });
+  document.getElementById('devices').innerHTML = t;
+
+  let p = '<tr><th>A</th><th>B</th><th>dist m</th><th>TCPA s</th><th>miss m</th><th>closing m/s</th><th>P</th><th>U</th><th>S</th><th>risk</th><th>raw</th><th>shown</th><th>reason</th></tr>';
+  m.pairs.forEach((q) => {
+    p += '<tr>' + cell(q.a) + cell(q.b) + cell(f(q.distM, 1)) + cell(f(q.tcpaS, 1)) + cell(f(q.missM, 1)) + cell(f(q.closingMps, 2)) +
+      cell(f(q.P, 2)) + cell(f(q.U, 2)) + cell(f(q.S, 2)) + cell(f(q.risk, 3)) + cell(q.raw, q.raw) + cell(q.level, q.level) + cell(q.reason) + '</tr>';
+  });
+  document.getElementById('pairs').innerHTML = p;
+  draw(m);
+}
+
+function draw(m) {
+  const c = document.getElementById('map');
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, c.width, c.height);
+  if (!m.devices.length) return;
+  const lat0 = m.devices.reduce((s, d) => s + d.lat, 0) / m.devices.length;
+  const lon0 = m.devices.reduce((s, d) => s + d.lon, 0) / m.devices.length;
+  const toXY = (lat, lon) => ({
+    x: (lon - lon0) * Math.PI / 180 * R * Math.cos(lat0 * Math.PI / 180),
+    y: (lat - lat0) * Math.PI / 180 * R,
+  });
+  const pts = {};
+  let maxExtent = 15;
+  m.devices.forEach((d) => {
+    const q = toXY(d.lat, d.lon);
+    pts[d.id] = q;
+    maxExtent = Math.max(maxExtent, Math.abs(q.x), Math.abs(q.y));
+  });
+  const scale = (Math.min(c.width, c.height) / 2 - 40) / maxExtent;
+  const px = (q) => ({ x: c.width / 2 + q.x * scale, y: c.height / 2 - q.y * scale });
+
+  m.pairs.forEach((q) => {
+    if (q.level === 'NONE') return;
+    const a = px(pts[q.a]); const b = px(pts[q.b]);
+    g.strokeStyle = COLORS[q.level]; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+  });
+  m.devices.forEach((d) => {
+    const p = px(pts[d.id]);
+    if (d.speed && d.heading !== null && d.heading !== undefined) {
+      const h = d.heading * Math.PI / 180;
+      g.strokeStyle = '#8af'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(p.x, p.y);
+      g.lineTo(p.x + Math.sin(h) * d.speed * 5 * scale, p.y - Math.cos(h) * d.speed * 5 * scale); g.stroke();
+    }
+    g.fillStyle = d.stale ? '#666' : '#4af';
+    g.beginPath(); g.arc(p.x, p.y, 7, 0, 2 * Math.PI); g.fill();
+    g.fillStyle = '#eee'; g.font = '13px sans-serif';
+    g.fillText(d.id + ' (' + d.role + ')', p.x + 10, p.y - 10);
+  });
+  g.fillStyle = '#888'; g.font = '12px sans-serif';
+  g.fillText('scale: ' + Math.round(100 / scale) + ' m = 100 px', 10, c.height - 10);
+}
+
+connect();
+</script>
+</body>
+</html>

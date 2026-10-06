@@ -1,0 +1,16 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "WebSocket backend: collects phone positions and computes collision risk",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:verbose": "VERBOSE=1 node server.js",
+    "start:real": "RISK_PROFILE=real node server.js",
+    "test": "node --test"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.21.3"
+  }
+}
