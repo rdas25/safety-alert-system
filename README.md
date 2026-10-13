@@ -234,28 +234,3 @@ safety-alert-system/
 | Alerts too eager | look at GPS accuracy (above about 15 m widens the alert region) and at `raw` versus `shown` |
 | Speed or heading shows `n/a` | iOS reports course only while moving; walk 20 m in a straight line, and check Precise Location is on |
 | Port in use | `lsof -i :8080`, or run with `PORT=8081 npm start` |
-
-## Limitations
-
-- Constant-velocity prediction: people who turn or stop are not anticipated, and a person waiting at a curb is invisible
-  until they move.
-- Consumer GPS error is several meters, so the model widens its alert region using each phone's reported accuracy; very
-  close passes (under about 5 m) cannot be told apart from collisions.
-- No road geometry: opposing traffic lanes look head-on, so driver-to-driver pairs are excluded for now.
-- Thresholds and severity weights are hand-chosen starting values, not calibrated on field data.
-- No authentication or TLS, and the dashboard and status messages expose live positions to anyone on the network.
-  Use only on a private network with consenting testers.
-- Location is foreground-only; the app stops reporting when the screen locks.
-- The server keeps everything in memory (no database), and evaluates every pair, which is fine for tens of devices.
-
-## Roadmap
-
-1. Record opt-in sessions (metrics only, no coordinates) and tune the thresholds and weights from real walks.
-2. Background location, so the app works with the phone in a pocket.
-3. A hosted backend with `wss://` and authentication before anyone outside a private test joins.
-4. Pilot with campus clubs, then use the `real` profile with actual cyclists and vehicles.
-5. Better trajectory prediction (turns and stops), then spatial indexing for scale.
-
-## License
-
-MIT, see [`LICENSE`](LICENSE).
