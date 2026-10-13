@@ -20,33 +20,33 @@ line through each dot is 5 seconds of travel.
 
 **1. Approaching, still far apart.** 31.9 m apart, closest approach 11.4 s away. Urgency `U` is 0, so risk is 0.
 
-![Far apart: NONE](docs/images/01-approach-none.png)
+![Far apart: NONE](/Users/rohandasanoor/Downloads/final-readme-and-demo/docs/images/01-approach-none.png)
 
 **2. LOW.** 20.7 m apart, closest approach in 7.4 s, predicted miss distance 0 m, risk 0.315. The shown level is `LOW`, but the
 `raw` level is already `MODERATE` (risk of 0.25 or more); see the note after frame 7.
 
-![LOW](docs/images/02-head-on-low.png)
+![LOW](/Users/rohandasanoor/Downloads/final-readme-and-demo/docs/images/02-head-on-low.png)
 
 **3. MODERATE.** 15.1 m, 5.4 s, risk 0.56. `raw` is already `HIGH` while `shown` is still `MODERATE`.
 
-![MODERATE](docs/images/03-head-on-moderate.png)
+![MODERATE](/Users/rohandasanoor/Downloads/final-readme-and-demo/docs/images/03-head-on-moderate.png)
 
 **4. HIGH.** 9.5 m, 3.4 s, risk 0.80. `raw` is already `CRITICAL`.
 
-![HIGH](docs/images/04-head-on-high.png)
+![HIGH](/Users/rohandasanoor/Downloads/final-readme-and-demo/docs/images/04-head-on-high.png)
 
 **5. CRITICAL.** 3.9 m, 1.4 s to the predicted collision.
 
-![CRITICAL](docs/images/05-head-on-critical.png)
+![CRITICAL](/Users/rohandasanoor/Downloads/final-readme-and-demo/docs/images/05-head-on-critical.png)
 
 **6. After passing.** The phones are now moving apart (`reason = diverging`), so the alert clears.
 
-![After pass: NONE](docs/images/06-after-pass-none.png)
+![After pass: NONE](/Users/rohandasanoor/Downloads/final-readme-and-demo/docs/images/06-after-pass-none.png)
 
 **7. A pass that should not alert.** Two walkers heading in opposite directions on parallel paths 20 m apart. They
 approach each other, but the predicted miss distance is 20 m, so the proximity term `P` is 0 and no alert is raised.
 
-![Wide pass: NONE](docs/images/07-wide-pass-none.png)
+![Wide pass: NONE](/Users/rohandasanoor/Downloads/final-readme-and-demo/docs/images/07-wide-pass-none.png)
 
 **About `raw` and `shown`.** The model produces a `raw` level every second. The server only changes the `shown` level after two
 consecutive ticks agree, which removes flicker from noisy GPS. The cost is visible in frames 2 to 4: the level phones
