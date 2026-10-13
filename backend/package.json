@@ -7,10 +7,15 @@
     "start": "node server.js",
     "start:verbose": "VERBOSE=1 node server.js",
     "start:real": "RISK_PROFILE=real node server.js",
+    "start:log": "LOG_POSITIONS=1 node server.js",
+    "replay": "node replay.js",
     "test": "node --test"
   },
   "license": "ISC",
   "dependencies": {
     "ws": "^8.21.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
