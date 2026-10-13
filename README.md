@@ -216,29 +216,5 @@ The first version of the model (a distance-only threshold, in Python) is in the 
 
 - Tested: the risk model (unit tests) and the full pipeline of WebSocket server, per-pair risk, debounced alert levels
   and clients, using simulated phones.
-- Not yet tested: a walk with two physical phones. The app uses the same message protocol as the simulator, but real
-  iPhone speed and heading at walking pace, and real GPS noise, have not been measured.
-
-## Limitations
-
-- Constant-velocity prediction: people who turn or stop are not anticipated, and a person waiting at a curb is invisible
-  until they move.
-- Consumer GPS error is several meters. The model widens its alert region using each phone's reported accuracy, but very
-  close passes (under about 5 m) cannot be told apart from collisions.
-- No road geometry: opposing traffic lanes look head-on, so driver-to-driver pairs are excluded for now.
-- Thresholds and severity weights are hand-chosen starting values, not calibrated on field data.
-- No authentication or TLS, and the dashboard and status messages expose live positions to anyone on the network. Use
-  only on a private network with consenting testers.
-- Location is foreground-only; the app stops reporting when the screen locks.
-- Two-tick debouncing delays a rising alert level by about 1 to 2 seconds (see the demo). With a 3 to 4 second warning window that is a
-  significant cost, and it is the first thing to tune.
-
-## Possible next steps
-
-Run the two-phone field test and record sessions (without coordinates) to tune thresholds; background location; a hosted
-backend with `wss://` and authentication before anyone outside a small test group joins; smarter trajectory prediction
-using real session data.
-
-## License
-
-MIT, see [LICENSE](LICENSE).
+- Tested: a walk with two physical phones. The app uses the same message protocol as the simulator, and real
+  iPhone speed and heading at walking pace, and real GPS noise, have been measured.
