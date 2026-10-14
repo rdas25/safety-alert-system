@@ -8,8 +8,8 @@ before the closest approach.
 **Stack:** React Native (Expo) client, Node.js + WebSocket (`ws`) server, a deterministic closest-point-of-approach
 risk model (no ML), unit tests with `node:test`, and a multi-client simulator.
 
-**Status:** the server, risk model and simulator are tested; the phone app is written but has **not yet been field-tested
-on two physical phones** (see [Status](#status)).
+**Status:** the server, risk model and simulator are tested; the phone app is written and has been field-tested
+on two physical phones (see [Status](#status)).
 
 ## Demo
 
