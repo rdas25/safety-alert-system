@@ -187,7 +187,7 @@ VERBOSE=1 npm start                                                     # in bac
 
 ## Tests
 
-Current local result: 18 backend tests and 3 mobile helper tests pass. See [verification details](docs/VERIFICATION.md); remote CI has not run for this change.
+Current local result: 18 backend tests and 3 mobile helper tests pass. See [verification details](docs/VERIFICATION.md); [PR CI](https://github.com/rdas25/safety-alert-system/actions/runs/40260801800) passed on Node.js 22/24, including mobile checks and iOS JavaScript export. The main-branch badge updates only after merge.
 
 ```bash
 cd backend && npm test

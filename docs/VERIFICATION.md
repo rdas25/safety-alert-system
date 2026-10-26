@@ -51,3 +51,9 @@ Review before publishing, including the MIT license, token/data exposure policy 
 Publish this branch as a draft PR. Confirm remote CI passes, then obtain owner
 review before merging to main. Render account creation/service approval and all physical/real-world sign-offs
 remain outstanding. See FINISH_LINE.md for phases 1–6 and FIELD_RESULTS.md for unfilled test rows.
+
+## Hosted CI
+
+Draft PR: https://github.com/rdas25/safety-alert-system/pull/1
+
+PR run https://github.com/rdas25/safety-alert-system/actions/runs/40260801800 completed successfully on commit 79418e369614ee9946e25712cad8e4327d13f77c. All three jobs passed: test (22), test (24), mobile. The push run 40260764294 also passed. These checks do not verify native compilation or phone behavior. Main remains unchanged and no deployment was performed.
