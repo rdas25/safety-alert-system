@@ -9,9 +9,25 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const WebSocket = require('ws');
+const crypto = require('crypto');
 const risk = require('./riskModel');
 
-const PORT = Number(process.env.PORT) || 8080;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+if (process.env.NODE_ENV === 'production' && !ADMIN_TOKEN) throw new Error('ADMIN_TOKEN required in production');
+const LOG_DIR = process.env.LOG_DIR || path.join(__dirname, 'logs');
+let recording = null;
+if (process.env.LOG_POSITIONS === '1') {
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+  recording = fs.createWriteStream(path.join(LOG_DIR, 'session-' + Date.now() + '.jsonl'), { flags: 'wx', mode: 0o600 });
+  recording.on('error', (err) => { console.error('Recording failed:', err.message); process.exit(1); });
+}
+function authorized(token) {
+  if (!ADMIN_TOKEN) return true; // local development only
+  const a = Buffer.from(token || ''); const b = Buffer.from(ADMIN_TOKEN);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+const PORT = process.env.PORT === undefined ? 8080 : Number(process.env.PORT);
 const PROFILE_NAME = process.env.RISK_PROFILE === 'real' ? 'real' : 'walktest';
 const PROFILE = risk.PROFILES[PROFILE_NAME];
 const VERBOSE = process.env.VERBOSE === '1';
@@ -20,8 +36,6 @@ const TICK_MS = 1000;
 const MAX_AGE_MS = 5000;        // data older than this is not used for risk
 const FORGET_AFTER_MS = 30000;  // device removed after this much silence
 const PEER_RADIUS_M = 500;      // phones only learn about peers within this distance
-const CONFIRM_UP = 2;           // ticks needed to raise a pair's alert level
-const CONFIRM_DOWN = 2;         // ticks needed to lower it
 
 const VALID_ROLES = new Set(risk.ROLES);
 const devices = new Map();      // deviceId -> record
@@ -34,7 +48,23 @@ const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
 // ---------- HTTP (dashboard + health) ----------
 const DASHBOARD = path.join(__dirname, 'public', 'dashboard.html');
 const server = http.createServer((req, res) => {
-  const url = (req.url || '/').split('?')[0];
+  let parsedUrl;
+  try { parsedUrl = new URL(req.url, 'http://localhost'); }
+  catch { res.writeHead(400); res.end('Invalid URL'); return; }
+  const url = parsedUrl.pathname;
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  if (url !== '/health' && !authorized(parsedUrl.searchParams.get('token'))) { res.writeHead(401); res.end('Unauthorized'); return; }
+  if (url === '/logs') {
+    const files = fs.existsSync(LOG_DIR) ? fs.readdirSync(LOG_DIR).filter(n => /^session-[0-9]+\.jsonl$/.test(n)) : [];
+    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(files)); return;
+  }
+  if (url.startsWith('/logs/')) {
+    const name = url.slice(6);
+    if (!/^session-[0-9]+\.jsonl$/.test(name) || !fs.existsSync(path.join(LOG_DIR, name))) { res.writeHead(404); res.end('not found'); return; }
+    res.writeHead(200, { 'Content-Type': 'application/x-ndjson', 'Content-Disposition': 'attachment; filename="' + name + '"' });
+    const stream = fs.createReadStream(path.join(LOG_DIR, name)); stream.on('error', () => res.destroy()); stream.pipe(res); return;
+  }
   if (url === '/' || url === '/dashboard') {
     fs.readFile(DASHBOARD, (err, html) => {
       if (err) { res.writeHead(500); res.end('dashboard.html missing'); return; }
@@ -85,7 +115,10 @@ function parsePosition(m) {
   return { value: { id: m.deviceId, role: m.role, lat: m.lat, lon: m.lon, speed, heading, accuracy, fixAgeMs } };
 }
 
-wss.on('connection', (socket) => {
+wss.on('connection', (socket, req) => {
+  let observerAuthorized;
+  try { observerAuthorized = authorized(new URL(req.url, 'http://localhost').searchParams.get('token')); }
+  catch { socket.close(1008, 'Invalid URL'); return; }
   socket.isAlive = true;
   socket.deviceId = null;
   socket.isObserver = false;
@@ -95,7 +128,10 @@ wss.on('connection', (socket) => {
     let m;
     try { m = JSON.parse(raw.toString()); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
-    if (m.type === 'observe') { socket.isObserver = true; return; }
+    if (m.type === 'observe') {
+      if (!observerAuthorized) { socket.close(1008, 'Unauthorized'); return; }
+      socket.isObserver = true; return;
+    }
     if (m.type !== 'position') return;
 
     const parsed = parsePosition(m);
@@ -146,26 +182,7 @@ setInterval(() => {
 }, 10000);
 
 // ---------- alert state machine (debounce / hysteresis) ----------
-function newPairState() { return { level: 'NONE', upCount: 0, upMin: 0, downCount: 0, downMax: 0 }; }
-
-function stepPair(ps, rawLevel) {
-  const r = risk.RANK[rawLevel];
-  const cur = risk.RANK[ps.level];
-  if (r > cur) {
-    ps.downCount = 0;
-    ps.upCount += 1;
-    ps.upMin = ps.upCount === 1 ? r : Math.min(ps.upMin, r);
-    if (ps.upCount >= CONFIRM_UP) { ps.level = risk.LEVELS[ps.upMin]; ps.upCount = 0; }
-  } else if (r < cur) {
-    ps.upCount = 0;
-    ps.downCount += 1;
-    ps.downMax = ps.downCount === 1 ? r : Math.max(ps.downMax, r);
-    if (ps.downCount >= CONFIRM_DOWN) { ps.level = risk.LEVELS[ps.downMax]; ps.downCount = 0; }
-  } else {
-    ps.upCount = 0;
-    ps.downCount = 0;
-  }
-}
+const { newPairState, stepPair } = require('./alertState');
 
 const round = (x, n) => (x === null || x === undefined ? null : Number(x.toFixed(n)));
 
@@ -248,12 +265,14 @@ function tick() {
       reason: p.res.reason, P: round(p.res.P, 2), U: round(p.res.U, 2), S: round(p.res.S, 2),
     })),
   };
+  if (recording) recording.write(JSON.stringify({ ...snapshot, schema: 1 }) + '\n');
   wss.clients.forEach((s) => { if (s.isObserver) send(s, snapshot); });
 }
 
 setInterval(tick, TICK_MS);
 
 server.listen(PORT, '0.0.0.0', () => {
+  console.log('LISTENING ' + server.address().port);
   console.log('==============================================');
   console.log(' Safety Alert System backend');
   console.log(' Risk profile : ' + PROFILE_NAME + (PROFILE_NAME === 'walktest'
@@ -270,4 +289,9 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('==============================================');
 });
 
-process.on('SIGINT', () => { console.log('\nshutting down'); process.exit(0); });
+function shutdown() {
+  if (recording) recording.end(() => process.exit(0));
+  else process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

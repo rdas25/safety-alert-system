@@ -1,19 +1,32 @@
 # Safety Alert System
 
+[![Tests](https://github.com/rdas25/safety-alert-system/actions/workflows/test.yml/badge.svg)](https://github.com/rdas25/safety-alert-system/actions/workflows/test.yml)
+
 A real-time collision-alert prototype for pedestrians, cyclists and drivers. Phones share live GPS position with a
 small server. Every second the server predicts, for every pair of nearby users, whether their paths are on a collision
-course, and pushes an alert level (`NONE`, `LOW`, `MODERATE`, `HIGH`, `CRITICAL`) back to the phones a few seconds
-before the closest approach.
+course, and pushes an alert level (`NONE`, `LOW`, `MODERATE`, `HIGH`, `CRITICAL`) back to the phones as predicted risk rises. Actual warning time requires field measurement.
 
 **Stack:** React Native (Expo) client, Node.js + WebSocket (`ws`) server, a deterministic closest-point-of-approach
 risk model (no ML), unit tests with `node:test`, and a multi-client simulator.
 
-**Status:** the server, risk model and simulator are tested; the phone app is written and has been field-tested
-on two physical phones (see [Status](#status)).
+**Status:** prototype with automated tests and simulation screenshots. Physical-phone results, hosted deployment,
+threshold calibration, and a phone demo clip are not verified by this repository. See the
+[phase-by-phase finish-line audit](docs/FINISH_LINE.md), [field results template](docs/FIELD_RESULTS.md),
+and [deployment guide](docs/DEPLOYMENT.md).
+
+## Reproducible synthetic validation
+
+![Synthetic collision-alert demonstration](docs/images/synthetic-demo.gif)
+
+**Simulation only.** The 52-second animation shows head-on escalation and a quiet 25 m pass, using the actual model and debounce. It is not phone footage.
+
+A [seeded benchmark](simulation/results/REPORT.md) covers 90 synthetic runs (ten trajectories, three noise settings, three seeds) and five HIGH cutoffs. Six additional [local live-server scenarios](simulation/results/live-transport.json) passed. Results include misses and false alerts; clean seeds repeat identical inputs. See [reproduction instructions](simulation/README.md) and [evidence-backed resume wording](docs/RESUME.md).
+
+The mobile app now uses Expo SDK 58, React Native 0.88 and React 19.3. A new native build is required. The generated iOS project contains scene lifecycle support for the installed Xcode 27 toolchain. A native iOS Simulator Release build succeeded under Xcode 27.1 with signing disabled. Physical behavior remains unverified.
 
 ## Demo
 
-The images below come from a real run of this repo: the actual server and risk model, two simulated pedestrians
+The inherited images below depict a simulation with the server and risk model and two simulated pedestrians
 (`simulation/simulated_agent.mjs`) walking toward each other from 40 m apart at 1.4 m/s each, and the live debug dashboard
 (`http://localhost:8080/`). Each frame shows the server's per-pair numbers and the two devices on a north-up map; the
 line through each dot is 5 seconds of travel.
@@ -63,7 +76,7 @@ HIGH -> CRITICAL  risk=0.97  tcpa=1.4s  miss=0.0m  closing=2.8m/s  dist=3.9m   r
 CRITICAL -> NONE  risk=0.00  tcpa=-1.6s miss=4.5m  closing=-2.8m/s dist=4.5m   reason=diverging
 ```
 
-These runs use the default `walktest` risk profile, explained [below](#risk-model).
+These historical screenshots use the default `walktest` risk profile, explained [below](#risk-model). Their timing has not been remeasured during this audit; they are not phone-test evidence.
 
 ## How it works
 
@@ -135,8 +148,8 @@ Driver-to-driver pairs are excluded for now, because without road geometry oppos
 
 ## Run it
 
-Prerequisites: Node.js 20 or newer (tested on 22). No Python is needed. For the phone app you also need a Mac with Xcode
-and an iPhone.
+Prerequisites: Node.js 24 LTS (24.3 or newer recommended; CI also tests Node.js 22). No Python is needed. For the phone app you also need a Mac with Xcode
+and an iPhone. The upgraded native project uses the Xcode 27 toolchain.
 
 ### Without any phones
 
@@ -163,7 +176,7 @@ RISK_PROFILE=real npm start                                             # in bac
 VERBOSE=1 npm start                                                     # in backend/: log every position and pair
 ```
 
-### With phones (written, not yet tested on hardware)
+### With phones (hardware verification pending)
 
 1. Start the backend and note the `<ip>:8080` address it prints. Phones and computer must be on the same network.
    `localhost` on a phone means the phone itself, so the computer's LAN address is required.
@@ -172,7 +185,8 @@ VERBOSE=1 npm start                                                     # in bac
 
    ```bash
    cd mobile && npm install
-   npx expo prebuild --platform ios
+   npx expo install --check
+   npx expo prebuild --clean --platform ios
    npx expo run:ios --device --configuration Release
    ```
 
@@ -183,11 +197,13 @@ VERBOSE=1 npm start                                                     # in bac
 
 ## Tests
 
+Current local result: 26 regression tests pass (18 backend, 3 mobile URL helpers, 5 simulation tests). See [verification details](docs/VERIFICATION.md); [Latest PR checks](https://github.com/rdas25/safety-alert-system/pull/1/checks) track Node.js 22/24, mobile bundling and live local transport scenarios. The main-branch badge updates only after merge.
+
 ```bash
 cd backend && npm test
 ```
 
-11 unit tests cover head-on escalation, moving apart, same velocity, wide and narrow passes, crossing at the same and
+The original 11 risk-model tests cover head-on escalation, moving apart, same velocity, wide and narrow passes, crossing at the same and
 at different times, a stationary person, unknown heading, both profiles, excluded pairs and poor GPS, symmetry between
 the two devices, and dead-reckoning. The server and simulator are exercised end to end by running the
 [quick start](#without-any-phones).
@@ -206,15 +222,53 @@ safety-alert-system/
 │   ├── public/dashboard.html  live debug dashboard
 │   ├── test/riskModel.test.js
 │   └── package.json
-├── mobile/                  Expo app: App.js, config.js, index.js, app.json, assets/
+├── mobile/                  Expo app: App.js, config.js, app.json, serverUrl.js
 └── simulation/              simulated_agent.mjs, ghost_car.mjs
 ```
 
 The first version of the model (a distance-only threshold, in Python) is in the git history.
 
-## Status
+## Recording and tuning
 
-- Tested: the risk model (unit tests) and the full pipeline of WebSocket server, per-pair risk, debounced alert levels
-  and clients, using simulated phones.
-- Tested: a walk with two physical phones. The app uses the same message protocol as the simulator, and real
-  iPhone speed and heading at walking pace, and real GPS noise, have been measured.
+```bash
+cd backend
+npm run start:log
+# After one scenario, Ctrl+C flushes logs/session-*.jsonl.
+node replay.js logs/session-<timestamp>.jsonl --timeline
+node replay.js logs/session-<timestamp>.jsonl --sweep HIGH=0.3,0.4,0.5,0.6,0.7
+```
+
+Record each walk separately. Replay recomputes the model and the shared two-tick debounce from 1 Hz,
+already time-aligned device snapshots. It uses the recorded profile and resets debounce across missing/stale pairs
+or gaps over 2 s. It does not reconstruct between-sample motion or reproduce historical versions of the model.
+Counts are per pair per file, not per second. `TRUE_ALERT`, `MISSED`, `FALSE_ALERT`, and `QUIET` compare any shown
+HIGH-or-higher alert against minimum sampled GPS distance <=5 m. These are rough proxies: verify them against notes,
+exclude incomplete passes, and do not treat them as ground truth. Negative `warningS` means the first warning came
+after the closest recorded point. Missing/poor-GPS observations cannot establish a quiet result.
+No cutoff has been tuned from real data yet.
+
+## Design choices and limits
+
+WebSockets keep one bidirectional connection for 1 Hz updates and server pushes. Central evaluation gives each pair
+one model and debounce state. Deterministic geometry is explainable and testable without a labeled training set;
+ML trajectory prediction would need representative data first.
+
+This is a foreground prototype: no background tracking, accounts, road geometry, or guaranteed warning delivery.
+GPS noise, stale fixes, straight-line motion, and two-tick debounce affect warning timing. Driver pairs are excluded.
+`walktest` is for walking demonstrations and does not validate road safety. Device IDs are self-asserted; anyone with
+the server address can submit positions and receive nearby peers. Dashboard tokens do not authenticate phones.
+Use controlled sessions with consenting participants. Scaling is quadratic in the number of active devices.
+
+## Privacy
+
+While tracking is open, phones send an ephemeral ID, role, location, speed, heading, GPS accuracy and fix age once per
+second. Stop ends tracking. Peers within 500 m receive positions; authorized dashboard viewers see all active devices.
+With no `ADMIN_TOKEN`, local dashboard access is unrestricted. Production refuses to start without a token.
+`LOG_POSITIONS=1` records 1 Hz snapshots including locations and pair risk values on server disk; default is off.
+Logs are not automatically deleted and must be removed after the agreed retention period. Downloads require the
+admin token when configured. Keep raw logs and tokens private; publish only redacted aggregates with consent.
+See [deployment](docs/DEPLOYMENT.md) for token handling and ephemeral storage.
+
+## License
+
+MIT; see [LICENSE](LICENSE).

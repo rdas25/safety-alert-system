@@ -5,5 +5,11 @@
   "type": "module",
   "dependencies": {
     "ws": "^8.21.3"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "benchmark": "node benchmark.mjs",
+    "test:live": "node live_suite.mjs"
   }
 }
