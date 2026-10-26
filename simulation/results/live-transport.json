@@ -1,0 +1,90 @@
+{
+  "kind": "LOCAL_SYNTHETIC_TRANSPORT",
+  "inputHz": 4,
+  "backendTickHz": 1,
+  "results": [
+    {
+      "scenario": "head-on",
+      "kind": "LOCAL_SYNTHETIC_TRANSPORT",
+      "elapsedS": 22.003,
+      "statuses": 42,
+      "levels": [
+        "NONE",
+        "LOW",
+        "MODERATE",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "expectedHigh": true,
+      "observedHigh": true,
+      "passed": true
+    },
+    {
+      "scenario": "crossing-same-arrival",
+      "kind": "LOCAL_SYNTHETIC_TRANSPORT",
+      "elapsedS": 22.003,
+      "statuses": 42,
+      "levels": [
+        "NONE",
+        "LOW",
+        "MODERATE",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "expectedHigh": true,
+      "observedHigh": true,
+      "passed": true
+    },
+    {
+      "scenario": "side-by-side",
+      "kind": "LOCAL_SYNTHETIC_TRANSPORT",
+      "elapsedS": 22.002,
+      "statuses": 42,
+      "levels": [
+        "NONE"
+      ],
+      "expectedHigh": false,
+      "observedHigh": false,
+      "passed": true
+    },
+    {
+      "scenario": "stationary-approach",
+      "kind": "LOCAL_SYNTHETIC_TRANSPORT",
+      "elapsedS": 22.001,
+      "statuses": 42,
+      "levels": [
+        "NONE",
+        "LOW",
+        "MODERATE",
+        "HIGH"
+      ],
+      "expectedHigh": true,
+      "observedHigh": true,
+      "passed": true
+    },
+    {
+      "scenario": "walking-apart",
+      "kind": "LOCAL_SYNTHETIC_TRANSPORT",
+      "elapsedS": 22.003,
+      "statuses": 42,
+      "levels": [
+        "NONE"
+      ],
+      "expectedHigh": false,
+      "observedHigh": false,
+      "passed": true
+    },
+    {
+      "scenario": "wide-pass-25m",
+      "kind": "LOCAL_SYNTHETIC_TRANSPORT",
+      "elapsedS": 22.002,
+      "statuses": 42,
+      "levels": [
+        "NONE"
+      ],
+      "expectedHigh": false,
+      "observedHigh": false,
+      "passed": true
+    }
+  ]
+}

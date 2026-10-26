@@ -48,7 +48,9 @@ const isNum = (x) => typeof x === 'number' && Number.isFinite(x);
 // ---------- HTTP (dashboard + health) ----------
 const DASHBOARD = path.join(__dirname, 'public', 'dashboard.html');
 const server = http.createServer((req, res) => {
-  const parsedUrl = new URL(req.url, 'http://localhost');
+  let parsedUrl;
+  try { parsedUrl = new URL(req.url, 'http://localhost'); }
+  catch { res.writeHead(400); res.end('Invalid URL'); return; }
   const url = parsedUrl.pathname;
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Referrer-Policy', 'no-referrer');
@@ -114,7 +116,9 @@ function parsePosition(m) {
 }
 
 wss.on('connection', (socket, req) => {
-  const observerAuthorized = authorized(new URL(req.url, 'http://localhost').searchParams.get('token'));
+  let observerAuthorized;
+  try { observerAuthorized = authorized(new URL(req.url, 'http://localhost').searchParams.get('token')); }
+  catch { socket.close(1008, 'Invalid URL'); return; }
   socket.isAlive = true;
   socket.deviceId = null;
   socket.isObserver = false;

@@ -14,6 +14,16 @@ threshold calibration, and a phone demo clip are not verified by this repository
 [phase-by-phase finish-line audit](docs/FINISH_LINE.md), [field results template](docs/FIELD_RESULTS.md),
 and [deployment guide](docs/DEPLOYMENT.md).
 
+## Reproducible synthetic validation
+
+![Synthetic collision-alert demonstration](docs/images/synthetic-demo.gif)
+
+**Simulation only.** The 52-second animation shows head-on escalation and a quiet 25 m pass, using the actual model and debounce. It is not phone footage.
+
+A [seeded benchmark](simulation/results/REPORT.md) covers 90 synthetic runs (ten trajectories, three noise settings, three seeds) and five HIGH cutoffs. Six additional [local live-server scenarios](simulation/results/live-transport.json) passed. Results include misses and false alerts; clean seeds repeat identical inputs. See [reproduction instructions](simulation/README.md) and [evidence-backed resume wording](docs/RESUME.md).
+
+The mobile app now uses Expo SDK 58, React Native 0.88 and React 19.3. A new native build is required. The generated iOS project contains scene lifecycle support for the installed Xcode 27 toolchain. A native iOS Simulator Release build succeeded under Xcode 27.1 with signing disabled. Physical behavior remains unverified.
+
 ## Demo
 
 The inherited images below depict a simulation with the server and risk model and two simulated pedestrians
@@ -138,8 +148,8 @@ Driver-to-driver pairs are excluded for now, because without road geometry oppos
 
 ## Run it
 
-Prerequisites: Node.js 22 or newer (CI targets 22 and 24). No Python is needed. For the phone app you also need a Mac with Xcode
-and an iPhone.
+Prerequisites: Node.js 24 LTS (24.3 or newer recommended; CI also tests Node.js 22). No Python is needed. For the phone app you also need a Mac with Xcode
+and an iPhone. The upgraded native project uses the Xcode 27 toolchain.
 
 ### Without any phones
 
@@ -187,7 +197,7 @@ VERBOSE=1 npm start                                                     # in bac
 
 ## Tests
 
-Current local result: 18 backend tests and 3 mobile helper tests pass. See [verification details](docs/VERIFICATION.md); [PR CI](https://github.com/rdas25/safety-alert-system/actions/runs/40260801800) passed on Node.js 22/24, including mobile checks and iOS JavaScript export. The main-branch badge updates only after merge.
+Current local result: 26 regression tests pass (18 backend, 3 mobile URL helpers, 5 simulation tests). See [verification details](docs/VERIFICATION.md); [Latest PR checks](https://github.com/rdas25/safety-alert-system/pull/1/checks) track Node.js 22/24, mobile bundling and live local transport scenarios. The main-branch badge updates only after merge.
 
 ```bash
 cd backend && npm test

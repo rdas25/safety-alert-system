@@ -27,6 +27,15 @@ test('HTTP token, observer authorization, live statuses and recording round trip
   });
   const base='http://127.0.0.1:'+port;
   assert.equal((await fetch(base+'/health')).status,200);
+  const malformedStatus = await new Promise((resolve,reject) => {
+    const request = require('node:http').get({ hostname:'127.0.0.1', port, path:'//'}, response => { response.resume(); resolve(response.statusCode); });
+    request.on('error',reject);
+  });
+  assert.equal(malformedStatus,400);
+  const malformedSocket = new WebSocket('ws://127.0.0.1:'+port+'//'); sockets.push(malformedSocket);
+  const malformedClose = once(malformedSocket,'close');
+  assert.equal((await malformedClose)[0],1008);
+  assert.equal((await fetch(base+'/health')).status,200);
   for(const route of ['/','/dashboard','/logs']) assert.equal((await fetch(base+route)).status,401);
   assert.equal((await fetch(base+'/?token=wrong')).status,401);
   assert.equal((await fetch(base+'/?token=test-only-token')).status,200);
