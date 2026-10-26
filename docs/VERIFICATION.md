@@ -3,7 +3,7 @@
 Baseline: main `2db78d2ef24f613eaa43197593ee3895abfcdc7f`.
 Draft PR: https://github.com/rdas25/safety-alert-system/pull/1
 
-Access is authorized for only this repository. Main has not been merged and no Render deployment has been performed.
+Access is authorized for only this repository. PR #1 was merged on October 26, 2026 and the backend was deployed to Render. See HOSTED_DEPLOYMENT.md for hosted evidence and remaining checks.
 This report describes observations, not assumed physical-phone test results.
 
 ## Verified locally
@@ -61,7 +61,7 @@ No real tokens or `.env` files were found in the working-tree scan; this is not 
 ## Still unverified
 
 Physical iPhone signing/install, actual permission prompts, screen wake/haptics, real GPS noise/accuracy,
-consented two-phone walks, a hosted Render service/cellular scenario, real-data threshold calibration,
+consented two-phone walks, a physical-phone/cellular hosted scenario, real-data threshold calibration,
 field false-alert/warning-time statistics, and a phone demo. These cannot be assumed from synthetic tests.
 
 ## Hosted CI

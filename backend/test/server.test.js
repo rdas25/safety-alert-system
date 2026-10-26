@@ -40,7 +40,7 @@ test('HTTP token, observer authorization, live statuses and recording round trip
   assert.equal((await fetch(base+'/?token=wrong')).status,401);
   assert.equal((await fetch(base+'/?token=test-only-token')).status,200);
   async function connect(query='') {const ws=new WebSocket('ws://127.0.0.1:'+port+'/'+query); sockets.push(ws); await once(ws,'open'); return ws;}
-  const rejected=await connect(); const close=once(rejected,'close'); rejected.send(JSON.stringify({type:'observe'})); assert.equal((await close)[0],1008);
+  const rejected=await connect(); const close=once(rejected,'close'); const denial=message(rejected,'error'); rejected.send(JSON.stringify({type:'observe'})); assert.equal((await denial).message,'Unauthorized observer'); assert.equal((await close)[0],1008);
   const observer=await connect('?token=test-only-token'); const dashboard=message(observer,'dashboard'); observer.send(JSON.stringify({type:'observe'})); assert.equal((await dashboard).type,'dashboard');
   const a=await connect(), b=await connect();
   const invalid=message(a,'error'); a.send(JSON.stringify({type:'position',deviceId:'bad',role:'pedestrian',lat:100,lon:0})); assert.match((await invalid).message,/bad lat/);
