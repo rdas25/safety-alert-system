@@ -41,3 +41,7 @@ the owner. Draft PR preparation is reviewable work; it does not certify any phas
 ## Simulation follow-up
 
 The repository now includes 26 regression tests, a seeded 90-run synthetic benchmark, six passing live local-server scenarios, and a labeled 52-second model demo. These extend software evidence but do not close physical-phone, real-world calibration, Render-account or field-demo sign-offs. See simulation/results/REPORT.md for the full trade-off table, the delayed-crossing expectation mismatch and stale-gap miss. Default thresholds remain unchanged. Expo was incrementally upgraded from SDK 54 through 55, 56 and 57 to 58, with compatible native dependencies.
+
+## Hosted follow-up — October 26, 2026
+
+PR #1 is merged. A free Ohio Render backend is live at https://safety-alert-system.onrender.com with logging off. HTTP health, dashboard token checks, authenticated observer snapshots and two synthetic hosted scenarios were verified. See HOSTED_DEPLOYMENT.md for the initial unauthorized close-frame timeout and explicit denial response follow-up. Real phone/cellular tests, real recorded walks and field calibration remain outstanding.

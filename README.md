@@ -9,10 +9,14 @@ course, and pushes an alert level (`NONE`, `LOW`, `MODERATE`, `HIGH`, `CRITICAL`
 **Stack:** React Native (Expo) client, Node.js + WebSocket (`ws`) server, a deterministic closest-point-of-approach
 risk model (no ML), unit tests with `node:test`, and a multi-client simulator.
 
-**Status:** prototype with automated tests and simulation screenshots. Physical-phone results, hosted deployment,
-threshold calibration, and a phone demo clip are not verified by this repository. See the
+**Status:** prototype with automated tests and simulation screenshots. The backend is hosted on Render; [health](https://safety-alert-system.onrender.com/health) and token-protected dashboard access have been verified. Physical-phone results,
+real-data threshold calibration, and a phone demo clip remain unverified. See the
 [phase-by-phase finish-line audit](docs/FINISH_LINE.md), [field results template](docs/FIELD_RESULTS.md),
 and [deployment guide](docs/DEPLOYMENT.md).
+
+## Hosted backend
+
+Backend: `https://safety-alert-system.onrender.com` (WebSocket: `wss://safety-alert-system.onrender.com`). The dashboard requires `ADMIN_TOKEN`, available privately in the Render service Environment settings. Logging is off. This is a free-plan prototype, not a field-validated safety service. See [hosted deployment details](docs/HOSTED_DEPLOYMENT.md).
 
 ## Reproducible synthetic validation
 

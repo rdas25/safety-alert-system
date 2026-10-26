@@ -129,7 +129,10 @@ wss.on('connection', (socket, req) => {
     try { m = JSON.parse(raw.toString()); } catch (e) { return; }
     if (!m || typeof m !== 'object') return;
     if (m.type === 'observe') {
-      if (!observerAuthorized) { socket.close(1008, 'Unauthorized'); return; }
+      if (!observerAuthorized) {
+        socket.send(JSON.stringify({ type: 'error', message: 'Unauthorized observer' }), () => socket.close(1008, 'Unauthorized'));
+        return;
+      }
       socket.isObserver = true; return;
     }
     if (m.type !== 'position') return;
