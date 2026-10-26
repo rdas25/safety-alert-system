@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Safety Alert",
+    "slug": "safety-alert-system",
+    "version": "1.0.0",
+    "ios": {
+      "bundleIdentifier": "com.rdas25.safetyalert",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Share your location while tracking to calculate nearby collision risk.",
+        "NSLocalNetworkUsageDescription": "Connect to the Safety Alert backend on your local network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    }
+  }
+}

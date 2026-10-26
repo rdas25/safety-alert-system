@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Vibration, ScrollView, Platform,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
+import { useKeepAwake } from 'expo-keep-awake';
+import { serverUrl } from './serverUrl';
 import { DEFAULT_SERVER } from './config';
 
 const ROLES = ['pedestrian', 'cyclist', 'driver'];
@@ -55,7 +58,7 @@ function Setup({ onStart }) {
       <Text style={styles.hint}>This phone's ID: {deviceId}</Text>
       <TouchableOpacity
         style={styles.startBtn}
-        onPress={() => onStart({ server: server.trim(), role, deviceId })}
+        onPress={() => { try { onStart({ server: serverUrl(server), role, deviceId }); } catch (e) { Alert.alert('Server address', e.message); } }}
       >
         <Text style={styles.startTxt}>Start</Text>
       </TouchableOpacity>
@@ -68,6 +71,7 @@ function Setup({ onStart }) {
 
 // ---------------------------------------------------------------- tracking screen
 function Tracker({ server, role, deviceId, onStop }) {
+  useKeepAwake();
   const [conn, setConn] = useState('connecting');
   const [fix, setFix] = useState(null);
   const [status, setStatus] = useState(null);
@@ -77,7 +81,6 @@ function Tracker({ server, role, deviceId, onStop }) {
 
   const wsRef = useRef(null);
   const fixRef = useRef(null);
-  const prevLevelRef = useRef('NONE');
 
   // 1 Hz ticker so "message age" updates on screen
   useEffect(() => {
@@ -173,20 +176,20 @@ function Tracker({ server, role, deviceId, onStop }) {
     return () => clearInterval(id);
   }, [deviceId, role]);
 
-  // Vibrate when the alert level rises to HIGH or CRITICAL (not on every update)
+  // Repeat only while the server is connected and its warning is fresh.
+  const activeWarning = conn === 'connected' && status && !status.stale && now - status.receivedAt < 5000 ? status.level : 'NONE';
   useEffect(() => {
-    const level = status ? status.level : 'NONE';
-    const prev = prevLevelRef.current;
-    if (RANK[level] > RANK[prev]) {
-      if (level === 'CRITICAL') Vibration.vibrate([0, 500, 120, 500, 120, 500]);
-      else if (level === 'HIGH') Vibration.vibrate([0, 400, 150, 400]);
-    }
-    prevLevelRef.current = level;
-  }, [status]);
+    if (!['HIGH', 'CRITICAL'].includes(activeWarning)) return;
+    const pulse = () => Haptics.notificationAsync(activeWarning === 'CRITICAL' ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    pulse();
+    const timer = setInterval(pulse, activeWarning === 'CRITICAL' ? 700 : 1400);
+    return () => clearInterval(timer);
+  }, [activeWarning]);
 
-  const level = status ? status.level : 'NONE';
-  const threat = status ? status.threat : null;
-  const peers = status ? status.peers : [];
+  const statusFresh = conn === 'connected' && status && !status.stale && now - status.receivedAt < 5000;
+  const level = statusFresh ? status.level : 'NONE';
+  const threat = statusFresh ? status.threat : null;
+  const peers = statusFresh ? status.peers : [];
   const statusAgeS = status ? (now - status.receivedAt) / 1000 : null;
 
   let bannerText = null;
@@ -241,6 +244,7 @@ function Tracker({ server, role, deviceId, onStop }) {
           </Text>
         ) : null}
         {serverError ? <Text style={[styles.hudLine, { color: '#ff8a80' }]}>Server: {serverError}</Text> : null}
+        {!statusFresh ? <Text style={[styles.hudLine, { color: '#ffd180' }]}>Waiting for fresh server data; alerts unavailable</Text> : null}
         {status && status.stale ? <Text style={[styles.hudLine, { color: '#ffd180' }]}>Server says your data is stale</Text> : null}
         <TouchableOpacity style={styles.stopBtn} onPress={onStop}>
           <Text style={styles.stopTxt}>Stop</Text>

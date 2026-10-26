@@ -1,0 +1,11 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {replay}=require('../replay');
+const {newPairState,stepPair}=require('../alertState');
+const device=(id,x,heading)=>({id,lat:0,lon:x/111195,speed:1.4,heading,accuracy:4,role:'pedestrian',stale:false});
+const row=(t,gap)=>({schema:1,type:'dashboard',t,profile:'walktest',devices:[device('a',0,90),device('b',gap,270)]});
+test('debounce requires two ticks in both directions',()=>{ const s=newPairState(); stepPair(s,'HIGH'); assert.equal(s.level,'NONE'); stepPair(s,'HIGH'); assert.equal(s.level,'HIGH'); stepPair(s,'NONE'); assert.equal(s.level,'HIGH'); stepPair(s,'NONE'); assert.equal(s.level,'NONE'); });
+test('synthetic approaching pair replays to a proxy true alert',()=>{ const r=replay([row(1000,12),row(2000,9),row(3000,4)]); assert.equal(r.counts.TRUE_ALERT,1); assert.equal(r.pairs[0].warningS,1); });
+test('stale samples reset debounce and do not become labels',()=>{ const stale=row(2000,4); stale.devices.forEach(d=>d.stale=true); const r=replay([row(1000,12),stale,row(3000,4)]); assert.equal(r.counts.MISSED,1); });
+test('sweep changes HIGH without mutating model defaults',()=>{ replay([row(1000,12)],0.3); assert.equal(require('../riskModel').PROFILES.walktest.CUTOFFS.HIGH,0.5); });
+test('reject unknown recording schema and unordered timestamps',()=>{ assert.throws(()=>replay([{...row(1,4),schema:2}])); assert.throws(()=>replay([row(2,4),row(1,4)])); });

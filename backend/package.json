@@ -11,7 +11,7 @@
     "replay": "node replay.js",
     "test": "node --test"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "ws": "^8.21.3"
   },

@@ -35,7 +35,7 @@ const R = 6371000;
 let ws = null;
 
 function connect() {
-  ws = new WebSocket('ws://' + location.host);
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/?token=' + encodeURIComponent(new URLSearchParams(location.search).get('token') || ''));
   ws.onopen = () => { document.getElementById('conn').textContent = 'connected'; ws.send(JSON.stringify({ type: 'observe' })); };
   ws.onclose = () => { document.getElementById('conn').textContent = 'disconnected, retrying...'; setTimeout(connect, 1000); };
   ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'dashboard') render(m); };
