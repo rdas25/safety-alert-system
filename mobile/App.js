@@ -42,7 +42,7 @@ function Setup({ onStart }) {
   return (
     <ScrollView contentContainerStyle={styles.setup} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Safety Alert</Text>
-      <Text style={styles.label}>Server (computer address and port)</Text>
+      <Text style={styles.label}>Server address</Text>
       <TextInput
         style={styles.input}
         value={server}
@@ -71,7 +71,7 @@ function Setup({ onStart }) {
         <Text style={styles.startTxt}>Start</Text>
       </TouchableOpacity>
       <Text style={styles.hint}>
-        Keep this screen on and the app open while testing. Phone and computer must be on the same network.
+        For initial testing, keep the app open. Hosted servers work over Wi-Fi or cellular; local servers require the same network.
       </Text>
     </ScrollView>
   );

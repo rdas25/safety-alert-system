@@ -4,12 +4,14 @@ Collision-warning prototype with foreground tracking and opt-in background tasks
 
 See [the current engineering handoff](docs/ENGINEERING_HANDOFF.md) for background setup, STATE_DIR, admin commands, optional motion/road context, test evidence and remaining prerequisites.
 
+See [operations and release gates](docs/OPERATIONS.md) for recovery, monitoring, privacy, support, and remaining approvals. The November 10 release is deployed; older handoffs describe earlier snapshots.
+
 ## Current behavior
 
 * Required device authentication; optional individual tokens scoped to test sessions. Per-device credentials preserve identity across reconnects. Admin access is separate.
 * Every fix expires after five seconds, regardless of reported movement. Missing accuracy, poor GPS and unknown motion are explicit unavailable states; peer exclusions and unavailable peers appear in the app.
 * HIGH/CRITICAL escalate on the next evaluation tick; lower changes and clearing require confirmation. This reduced synthetic misses but increased synthetic false alerts.
-* Server limits: 100 devices, 128 connections, 1,000 device identities per server lifetime, ten messages/second per socket, 4 KB incoming messages, 1 MB queued outgoing data. Restart clears device identities.
+* Server limits: 100 devices, 128 connections, 1,000 device identities per server lifetime, ten messages/second per socket, 4 KB incoming messages, 1 MB queued outgoing data. Restart clears device identities only without persistent STATE_DIR storage.
 * Spatial cells restrict candidates to nearby devices; dense pair processing remains quadratic; unrelated sessions never share pairs or phone locations. Global admin observers can see all sessions.
 * Replay separates encounters on missing data, long gaps, profile changes or renewed approaches after divergence. Warnings with less than one second before the sampled closest point are LATE_ALERT. Labels remain GPS proxies.
 * Logging defaults off. When enabled: private files, 24-hour inactive-file retention, 100 MB inactive-file budget, 10 MB recording rotation. Excessive write backlog or disk failure disables recording and is exposed in /metrics without stopping warnings. Export test recordings promptly.
