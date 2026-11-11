@@ -7,6 +7,9 @@ function newPairState() { return { level: 'NONE', upCount: 0, upMin: 0, downCoun
 function stepPair(ps, rawLevel) {
   const r = risk.RANK[rawLevel];
   const cur = risk.RANK[ps.level];
+  if (r > cur && r >= risk.RANK.HIGH) {
+    ps.level = rawLevel; ps.upCount = 0; ps.downCount = 0; return;
+  }
   if (r > cur) {
     ps.downCount = 0;
     ps.upCount += 1;

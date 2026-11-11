@@ -12,6 +12,22 @@
           "NSAllowsLocalNetworking": true
         }
       }
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "Share location during an explicitly enabled background tracking session to assess nearby collision risk."
+        }
+      ],
+      "expo-secure-store",
+      "expo-notifications"
+    ],
+    "android": {
+      "package": "com.rdas25.safetyalert"
     }
   }
 }

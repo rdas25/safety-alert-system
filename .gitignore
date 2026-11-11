@@ -11,3 +11,8 @@ mobile/.expo/
 mobile/dist/
 .mobile-export/
 simulation/results/synthetic-recordings/
+
+state/
+private-state/
+mobile/dist-final/
+mobile/dist-android/

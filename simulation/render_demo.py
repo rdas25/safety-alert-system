@@ -32,7 +32,7 @@ for frame in frames:
  d.text((635,313),f"Risk: {frame['risk']:.2f}",fill='#dae6f4',font=font(18))
  d.text((635,347),f"Distance: {frame['distanceM']:.1f} m",fill='#dae6f4',font=font(18))
  d.text((635,381),f"TCPA: {frame['tcpaS']:.1f} s",fill='#dae6f4',font=font(18))
- d.text((30,488),'Deterministic model + two-tick debounce. Simulation results do not establish real-world safety.',fill='#91a9c4',font=font(14))
+ d.text((30,488),'Immediate urgent alerts; confirmed clearing. Synthetic results do not establish real-world safety.',fill='#91a9c4',font=font(14))
  images.append(im)
 images[0].save(output,save_all=True,append_images=images[1:],duration=1000,loop=0,optimize=True)
 if len(sys.argv)>3:

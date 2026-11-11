@@ -6,12 +6,11 @@
     {
       "scenario": "head-on",
       "kind": "LOCAL_SYNTHETIC_TRANSPORT",
-      "elapsedS": 22.003,
+      "elapsedS": 22.001,
       "statuses": 42,
       "levels": [
         "NONE",
         "LOW",
-        "MODERATE",
         "HIGH",
         "CRITICAL"
       ],
@@ -22,7 +21,7 @@
     {
       "scenario": "crossing-same-arrival",
       "kind": "LOCAL_SYNTHETIC_TRANSPORT",
-      "elapsedS": 22.003,
+      "elapsedS": 22.002,
       "statuses": 42,
       "levels": [
         "NONE",
@@ -38,7 +37,7 @@
     {
       "scenario": "side-by-side",
       "kind": "LOCAL_SYNTHETIC_TRANSPORT",
-      "elapsedS": 22.002,
+      "elapsedS": 22.001,
       "statuses": 42,
       "levels": [
         "NONE"
@@ -50,7 +49,7 @@
     {
       "scenario": "stationary-approach",
       "kind": "LOCAL_SYNTHETIC_TRANSPORT",
-      "elapsedS": 22.001,
+      "elapsedS": 22.002,
       "statuses": 42,
       "levels": [
         "NONE",
@@ -65,7 +64,7 @@
     {
       "scenario": "walking-apart",
       "kind": "LOCAL_SYNTHETIC_TRANSPORT",
-      "elapsedS": 22.003,
+      "elapsedS": 22.002,
       "statuses": 42,
       "levels": [
         "NONE"

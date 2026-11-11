@@ -1,3 +1,5 @@
+> Historical document. Current configuration, results, and remaining work are in [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md).
+
 # Resume and interview preparation
 
 Safe description now: Built a foreground collision-alert prototype with React Native, Node.js and WebSockets;

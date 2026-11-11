@@ -1,3 +1,5 @@
+> Historical document. Current configuration, results, and remaining work are in [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md).
+
 # Evidence-backed portfolio wording
 
 Use these as prototype bullets. They deliberately describe synthetic validation rather than field testing or deployment.

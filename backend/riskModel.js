@@ -47,7 +47,7 @@ const pairKey = (r1, r2) => [r1, r2].sort().join('|');
 function localXY(lat, lon, refLat, refLon) {
   const toRad = Math.PI / 180;
   return {
-    x: (lon - refLon) * toRad * EARTH_RADIUS_M * Math.cos(refLat * toRad),
+    x: (((lon - refLon + 540) % 360) - 180) * toRad * EARTH_RADIUS_M * Math.cos(refLat * toRad),
     y: (lat - refLat) * toRad * EARTH_RADIUS_M,
   };
 }
@@ -66,9 +66,11 @@ function advance(s, dtS, profile) {
   if (!(dtS > 0)) return s;
   const v = velocity(s, p);
   if (!v.moving) return s;
-  const dLat = ((v.vy * dtS) / EARTH_RADIUS_M) * (180 / Math.PI);
-  const dLon = ((v.vx * dtS) / (EARTH_RADIUS_M * Math.cos((s.lat * Math.PI) / 180))) * (180 / Math.PI);
-  return Object.assign({}, s, { lat: s.lat + dLat, lon: s.lon + dLon });
+  const angle=Math.hypot(v.vx,v.vy)*dtS/EARTH_RADIUS_M;
+  const bearing=Math.atan2(v.vx,v.vy),lat=s.lat*Math.PI/180,lon=s.lon*Math.PI/180;
+  const nextLat=Math.asin(clamp(Math.sin(lat)*Math.cos(angle)+Math.cos(lat)*Math.sin(angle)*Math.cos(bearing),-1,1));
+  const nextLon=lon+Math.atan2(Math.sin(bearing)*Math.sin(angle)*Math.cos(lat),Math.cos(angle)-Math.sin(lat)*Math.sin(nextLat));
+  return Object.assign({},s,{lat:nextLat*180/Math.PI,lon:((nextLon*180/Math.PI+540)%360)-180});
 }
 
 // a, b: { lat, lon, heading (deg|null), speed (m/s|null), accuracy (m|null), role }

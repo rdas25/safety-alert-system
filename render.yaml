@@ -6,12 +6,16 @@ services:
     rootDir: backend
     buildCommand: npm ci
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /ready
     envVars:
+      - key: RISK_PROFILE
+        value: walktest
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
         value: "22"
+      - key: CLIENT_TOKEN
+        generateValue: true
       - key: ADMIN_TOKEN
         generateValue: true
       - key: LOG_POSITIONS

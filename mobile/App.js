@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Platform, Alert, AppState,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
-import { useKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { serverUrl } from './serverUrl';
 import { DEFAULT_SERVER } from './config';
+import { startBackground, stopBackground } from './background';
 
 const ROLES = ['pedestrian', 'cyclist', 'driver'];
 const RANK = { NONE: 0, LOW: 1, MODERATE: 2, HIGH: 3, CRITICAL: 4 };
@@ -19,11 +20,14 @@ const compass = (deg) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 45) % 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const fmt = (v, n) => (v === null || v === undefined ? 'n/a' : Number(v).toFixed(n));
 
-// New random ID every time the app launches, so two phones can never collide.
+// New ephemeral identity for each setup session; the server enforces ownership.
 const makeDeviceId = () => 'dev-' + Math.random().toString(36).slice(2, 8);
 
 export default function App() {
+  const [ready,setReady]=useState(false);
+  useEffect(()=>{stopBackground().catch(()=>{}).finally(()=>setReady(true));},[]);
   const [session, setSession] = useState(null); // { server, role, deviceId }
+  if(!ready)return <View style={styles.center}><Text>Preparing tracking…</Text></View>;
   if (!session) return <Setup onStart={setSession} />;
   return <Tracker {...session} onStop={() => setSession(null)} />;
 }
@@ -31,6 +35,7 @@ export default function App() {
 // ---------------------------------------------------------------- setup screen
 function Setup({ onStart }) {
   const [server, setServer] = useState(DEFAULT_SERVER);
+  const [sessionToken, setSessionToken] = useState('');
   const [role, setRole] = useState('pedestrian');
   const [deviceId] = useState(makeDeviceId);
 
@@ -47,6 +52,8 @@ function Setup({ onStart }) {
         keyboardType="url"
         placeholder="192.168.1.50:8080"
       />
+      <Text style={styles.label}>Session access token</Text>
+      <TextInput style={styles.input} value={sessionToken} onChangeText={setSessionToken} secureTextEntry autoCapitalize="none" autoCorrect={false} />
       <Text style={styles.label}>I am a...</Text>
       <View style={styles.row}>
         {ROLES.map((r) => (
@@ -55,10 +62,11 @@ function Setup({ onStart }) {
           </TouchableOpacity>
         ))}
       </View>
+      <Text style={styles.hint}>Starting shares your location with participants in your test session and the administrator. Optional recordings contain location data. Stop ends tracking.</Text>
       <Text style={styles.hint}>This phone's ID: {deviceId}</Text>
       <TouchableOpacity
         style={styles.startBtn}
-        onPress={() => { try { onStart({ server: serverUrl(server), role, deviceId }); } catch (e) { Alert.alert('Server address', e.message); } }}
+        onPress={() => { try { sessionToken.trim() ? onStart({ server: serverUrl(server), role, deviceId, sessionToken: sessionToken.trim() }) : Alert.alert('Session access', 'Enter the session access token'); } catch (e) { Alert.alert('Server address', e.message); } }}
       >
         <Text style={styles.startTxt}>Start</Text>
       </TouchableOpacity>
@@ -70,8 +78,12 @@ function Setup({ onStart }) {
 }
 
 // ---------------------------------------------------------------- tracking screen
-function Tracker({ server, role, deviceId, onStop }) {
-  useKeepAwake();
+function Tracker({ server, role, deviceId, sessionToken, onStop }) {
+  const [keepScreenOn,setKeepScreenOn]=useState(false);
+  useEffect(()=>{if(keepScreenOn)activateKeepAwakeAsync('tracking').catch(()=>{});return ()=>{deactivateKeepAwake('tracking');};},[keepScreenOn]);
+  const [appState,setAppState]=useState(AppState.currentState);
+  const [backgroundEnabled,setBackgroundEnabled]=useState(false);
+  useEffect(()=>{const sub=AppState.addEventListener('change',setAppState);return ()=>sub.remove();},[]);
   const [conn, setConn] = useState('connecting');
   const [fix, setFix] = useState(null);
   const [status, setStatus] = useState(null);
@@ -80,7 +92,10 @@ function Tracker({ server, role, deviceId, onStop }) {
   const [now, setNow] = useState(Date.now());
 
   const wsRef = useRef(null);
+  const deviceSecretRef = useRef(null);
   const fixRef = useRef(null);
+  const sequenceRef = useRef(0);
+  const [gpsAttempt,setGpsAttempt]=useState(0);
 
   // 1 Hz ticker so "message age" updates on screen
   useEffect(() => {
@@ -90,6 +105,7 @@ function Tracker({ server, role, deviceId, onStop }) {
 
   // WebSocket with automatic reconnect
   useEffect(() => {
+    if(appState!=='active') {setConn('background');return;}
     let closed = false;
     let retryTimer = null;
     let attempt = 0;
@@ -100,15 +116,18 @@ function Tracker({ server, role, deviceId, onStop }) {
       setConn(attempt === 0 ? 'connecting' : 'reconnecting');
       const ws = new WebSocket(url);
       wsRef.current = ws;
-      ws.onopen = () => { attempt = 0; setConn('connected'); setServerError(null); };
+      ws.onopen = () => { attempt = 0; setConn('authenticating'); setServerError(null); ws.send(JSON.stringify({type:'authenticate',sessionToken})); };
       ws.onmessage = (e) => {
         let m;
         try { m = JSON.parse(e.data); } catch (err) { return; }
+        if (m.type === 'authenticated') setConn('connected');
+        if (m.type === 'credential' && !deviceSecretRef.current) deviceSecretRef.current = m.deviceSecret;
         if (m.type === 'status') setStatus({ ...m, receivedAt: Date.now() });
         else if (m.type === 'error') setServerError(m.message);
       };
       ws.onerror = () => {};
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        if(event.code===1008){setConn('denied');return;}
         if (wsRef.current === ws) wsRef.current = null;
         if (closed) return;
         setConn('reconnecting');
@@ -122,21 +141,27 @@ function Tracker({ server, role, deviceId, onStop }) {
       clearTimeout(retryTimer);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [server]);
+  }, [server,sessionToken,appState]);
 
   // GPS
   useEffect(() => {
+    if(appState!=='active')return;
     let sub = null;
     let cancelled = false;
     (async () => {
+      try {
+      setPermError(null);
+      if(!await Location.hasServicesEnabledAsync()) throw Error('Location services are disabled. Enable them and retry.');
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== 'granted') {
         setPermError('Location permission denied. Enable it in Settings > Privacy > Location Services.');
         return;
       }
+      if(cancelled)return;
       sub = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 0 },
         (loc) => {
+          if(cancelled || (fixRef.current && loc.timestamp<=fixRef.current.fixTime))return;
           const c = loc.coords;
           const f = {
             lat: c.latitude,
@@ -151,18 +176,19 @@ function Tracker({ server, role, deviceId, onStop }) {
         }
       );
       if (cancelled && sub) sub.remove();
+      } catch(error) { if(!cancelled){fixRef.current=null;setFix(null);setPermError(error.message || 'Unable to start GPS. Retry.');} }
     })();
     return () => { cancelled = true; if (sub) sub.remove(); };
-  }, []);
+  }, [gpsAttempt,appState]);
 
   // Send the latest fix once per second (also when standing still, so the server knows we are alive)
   useEffect(() => {
     const id = setInterval(() => {
       const f = fixRef.current;
       const ws = wsRef.current;
-      if (!f || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!f || !deviceSecretRef.current || !ws || ws.readyState !== WebSocket.OPEN) return;
       ws.send(JSON.stringify({
-        type: 'position',
+        type: 'position', sequence:(sequenceRef.current=Math.max(Date.now(),sequenceRef.current+1)), sessionToken, deviceSecret: deviceSecretRef.current,
         deviceId,
         role,
         lat: f.lat,
@@ -174,10 +200,10 @@ function Tracker({ server, role, deviceId, onStop }) {
       }));
     }, 1000);
     return () => clearInterval(id);
-  }, [deviceId, role]);
+  }, [deviceId, role, sessionToken]);
 
   // Repeat only while the server is connected and its warning is fresh.
-  const activeWarning = conn === 'connected' && status && !status.stale && now - status.receivedAt < 5000 ? status.level : 'NONE';
+  const activeWarning = conn === 'connected' && status && status.coverage === 'available' && !status.stale && now - status.receivedAt < 5000 ? status.level : 'NONE';
   useEffect(() => {
     if (!['HIGH', 'CRITICAL'].includes(activeWarning)) return;
     const pulse = () => Haptics.notificationAsync(activeWarning === 'CRITICAL' ? Haptics.NotificationFeedbackType.Error : Haptics.NotificationFeedbackType.Warning).catch(() => {});
@@ -186,7 +212,7 @@ function Tracker({ server, role, deviceId, onStop }) {
     return () => clearInterval(timer);
   }, [activeWarning]);
 
-  const statusFresh = conn === 'connected' && status && !status.stale && now - status.receivedAt < 5000;
+  const statusFresh = conn === 'connected' && status && status.coverage === 'available' && !status.stale && now - status.receivedAt < 5000;
   const level = statusFresh ? status.level : 'NONE';
   const threat = statusFresh ? status.threat : null;
   const peers = statusFresh ? status.peers : [];
@@ -229,6 +255,12 @@ function Tracker({ server, role, deviceId, onStop }) {
       )}
 
       <View style={styles.hud}>
+        <TouchableOpacity onPress={()=>setKeepScreenOn(v=>!v)}><Text style={styles.hudLine}>Keep screen on: {keepScreenOn?'Yes':'No'} — tap to change</Text></TouchableOpacity>
+        {status?.recordingEnabled ? <Text style={styles.hudLine}>This session is being recorded by the administrator.</Text>:null}
+        {status?.roadContext ? <Text style={styles.hudLine}>Near {status.roadContext.name} (map context only)</Text>:null}
+        {permError ? <TouchableOpacity onPress={()=>setGpsAttempt(v=>v+1)}><Text style={styles.hudLine}>GPS: {permError} Tap to retry.</Text></TouchableOpacity>:null}
+        {status && status.coverage !== 'available' ? <Text style={styles.hudLine}>Assessment unavailable: {status.coverage}</Text>:null}
+        {status && (status.unavailablePeers>0 || status.excludedPeers>0) ? <Text style={styles.hudLine}>Incomplete coverage: {status.unavailablePeers} unavailable, {status.excludedPeers} excluded peers</Text>:null}
         <Text style={styles.hudLine}>
           You: {deviceId} ({role})   Server: {conn}
         </Text>
@@ -246,7 +278,12 @@ function Tracker({ server, role, deviceId, onStop }) {
         {serverError ? <Text style={[styles.hudLine, { color: '#ff8a80' }]}>Server: {serverError}</Text> : null}
         {!statusFresh ? <Text style={[styles.hudLine, { color: '#ffd180' }]}>Waiting for fresh server data; alerts unavailable</Text> : null}
         {status && status.stale ? <Text style={[styles.hudLine, { color: '#ffd180' }]}>Server says your data is stale</Text> : null}
-        <TouchableOpacity style={styles.stopBtn} onPress={onStop}>
+        <TouchableOpacity style={styles.stopBtn} onPress={async()=>{
+          try{if(backgroundEnabled){await stopBackground(false);setBackgroundEnabled(false);}else{await startBackground({server,role,deviceId,sessionToken,deviceSecret:deviceSecretRef.current});setBackgroundEnabled(true);}}catch(error){Alert.alert('Background tracking',error.message);}
+        }}><Text style={styles.stopTxt}>{backgroundEnabled?'Disable background tracking':'Enable background tracking (12 hours)'}</Text></TouchableOpacity>
+        <Text style={styles.hudLine}>Only participating phones are detected. Background delivery depends on your phone and network.</Text>
+        <TouchableOpacity style={styles.stopBtn} onPress={async()=>{await stopBackground().catch(()=>{});if(wsRef.current?.readyState===WebSocket.OPEN)wsRef.current.send(JSON.stringify({type:'stop',sessionToken,deviceId,deviceSecret:deviceSecretRef.current}));onStop();}}>
+
           <Text style={styles.stopTxt}>Stop</Text>
         </TouchableOpacity>
       </View>

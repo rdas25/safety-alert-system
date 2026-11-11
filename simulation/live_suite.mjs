@@ -13,7 +13,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function run(scenario) {
   const logs = fs.mkdtempSync(path.join(os.tmpdir(), 'safety-synthetic-'));
   const server = spawn(process.execPath, ['server.js'], { cwd: backend,
-    env: { ...process.env, PORT: '0', ADMIN_TOKEN: 'synthetic-only-token', RISK_PROFILE: 'walktest', LOG_POSITIONS: '1', LOG_DIR: logs }, stdio: ['ignore', 'pipe', 'pipe'] });
+    env: { ...process.env, CLIENT_TOKEN: 'test-session-token', PORT: '0', ADMIN_TOKEN: 'synthetic-only-token', RISK_PROFILE: 'walktest', LOG_POSITIONS: '1', LOG_DIR: logs }, stdio: ['ignore', 'pipe', 'pipe'] });
   const sockets = []; let timer; let failure;
   try {
     const port = await new Promise((resolve, reject) => {
@@ -35,7 +35,7 @@ async function run(scenario) {
       const t = (Date.now() - start) / 1000;
       for (let i = 0; i < 2; i++) {
         const d = device(i ? 'b' : 'a', (i ? scenario.b : scenario.a)(t));
-        sockets[i].send(JSON.stringify({ type: 'position', deviceId: d.id, role: d.role,
+        sockets[i].send(JSON.stringify({ type: 'position', sessionToken: 'test-session-token', deviceSecret: 'a'.repeat(64), deviceId: d.id, role: d.role,
           lat: d.lat, lon: d.lon, speed: d.speed, heading: d.heading, accuracy: 4, fixAgeMs: 0 }));
       }
     };

@@ -1,3 +1,5 @@
+> Historical document. Current configuration, results, and remaining work are in [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md).
+
 # Finish-line audit — October 25, 2026
 
 Source: uploaded Safety Alert System Finish Line Checklist.pdf, phases 1–6.

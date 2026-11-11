@@ -1,3 +1,5 @@
+> Historical document. Current configuration, results, and remaining work are in [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md).
+
 # Hosted deployment — October 26, 2026
 
 - Backend: https://safety-alert-system.onrender.com

@@ -19,7 +19,7 @@ jobs:
         working-directory: backend
       - run: npm test
         working-directory: backend
-      - run: node --test mobile/serverUrl.test.js
+      - run: node --test mobile/*.test.js
       - run: npm ci
         working-directory: simulation
       - run: npm test

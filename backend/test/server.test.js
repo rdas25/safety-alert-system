@@ -16,7 +16,7 @@ function message(ws, type) {
 }
 test('HTTP token, observer authorization, live statuses and recording round trip',async(t)=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'safety-test-'));
-  const child=spawn(process.execPath,['server.js'],{cwd:path.join(__dirname,'..'),env:{...process.env,PORT:'0',ADMIN_TOKEN:'test-only-token',LOG_POSITIONS:'1',LOG_DIR:dir}});
+  const child=spawn(process.execPath,['server.js'],{cwd:path.join(__dirname,'..'),env:{...process.env,RISK_PROFILE:'walktest',CLIENT_TOKEN:'test-session-token',PORT:'0',ADMIN_TOKEN:'test-only-token',LOG_POSITIONS:'1',LOG_DIR:dir}});
   const sockets=[]; let stopped=false;
   t.after(async()=>{for(const s of sockets)s.terminate(); if(!stopped && child.exitCode === null){const exit=once(child,'exit'); child.kill('SIGTERM'); await exit;} fs.rmSync(dir,{recursive:true,force:true});});
   let output=''; child.stderr.on('data',d=>{output+=d;});
@@ -43,8 +43,8 @@ test('HTTP token, observer authorization, live statuses and recording round trip
   const rejected=await connect(); const close=once(rejected,'close'); const denial=message(rejected,'error'); rejected.send(JSON.stringify({type:'observe'})); assert.equal((await denial).message,'Unauthorized observer'); assert.equal((await close)[0],1008);
   const observer=await connect('?token=test-only-token'); const dashboard=message(observer,'dashboard'); observer.send(JSON.stringify({type:'observe'})); assert.equal((await dashboard).type,'dashboard');
   const a=await connect(), b=await connect();
-  const invalid=message(a,'error'); a.send(JSON.stringify({type:'position',deviceId:'bad',role:'pedestrian',lat:100,lon:0})); assert.match((await invalid).message,/bad lat/);
-  const pos=(id,lon,heading)=>({type:'position',deviceId:id,role:'pedestrian',lat:0,lon,speed:1.4,heading,accuracy:4,fixAgeMs:0});
+  const invalid=message(a,'error'); a.send(JSON.stringify({type:'position',sessionToken:'test-session-token',deviceSecret:'a'.repeat(64),deviceId:'bad',role:'pedestrian',lat:100,lon:0})); assert.match((await invalid).message,/bad lat/);
+  const pos=(id,lon,heading)=>({type:'position',sessionToken:'test-session-token',deviceSecret:'a'.repeat(64),deviceId:id,role:'pedestrian',lat:0,lon,speed:1.4,heading,accuracy:4,fixAgeMs:0});
   const status=message(a,'status'); a.send(JSON.stringify(pos('a',0,90))); b.send(JSON.stringify(pos('b',0.00008,270))); assert.equal((await status).stale,false);
   const high=await message(a,'status'); assert.ok(['HIGH','CRITICAL'].includes(high.level));
   const listed=await (await fetch(base+'/logs?token=test-only-token')).json();
@@ -62,6 +62,6 @@ test('HTTP token, observer authorization, live statuses and recording round trip
 
 test('production refuses startup without an admin token',()=>{
   const {spawnSync}=require('node:child_process');
-  const result=spawnSync(process.execPath,['server.js'],{cwd:path.join(__dirname,'..'),env:{...process.env,NODE_ENV:'production',ADMIN_TOKEN:'',LOG_POSITIONS:'0'},encoding:'utf8',timeout:5000});
+  const result=spawnSync(process.execPath,['server.js'],{cwd:path.join(__dirname,'..'),env:{...process.env,RISK_PROFILE:'walktest',CLIENT_TOKEN:'test-session-token',NODE_ENV:'production',ADMIN_TOKEN:'',LOG_POSITIONS:'0'},encoding:'utf8',timeout:5000});
   assert.notEqual(result.status,0); assert.match(result.stderr,/ADMIN_TOKEN required in production/);
 });

@@ -8,6 +8,9 @@
 //   NOISE_M=3                           (random GPS jitter in meters, default 0)
 
 import WebSocket from "ws";
+import { randomBytes } from "node:crypto";
+const deviceSecret = randomBytes(32).toString("hex");
+if (!process.env.CLIENT_TOKEN) throw new Error("CLIENT_TOKEN required");
 
 const [deviceId, role, latArg, lonArg, headingArg, speedArg] = process.argv.slice(2);
 const ROLES = ["pedestrian", "cyclist", "driver"];
@@ -42,7 +45,7 @@ ws.on("open", () => {
     const jitterN = NOISE_M * gauss();
     const jitterE = NOISE_M * gauss();
     ws.send(JSON.stringify({
-      type: "position",
+      type: "position", sessionToken: process.env.CLIENT_TOKEN, deviceSecret,
       deviceId,
       role,
       lat: lat + jitterN / METERS_PER_DEG_LAT,

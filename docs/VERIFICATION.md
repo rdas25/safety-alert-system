@@ -1,3 +1,5 @@
+> Historical document. Current configuration, results, and remaining work are in [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md).
+
 # Verification report — October 25, 2026
 
 Baseline: main `2db78d2ef24f613eaa43197593ee3895abfcdc7f`.

@@ -1,3 +1,5 @@
+> Historical document. Current configuration, results, and remaining work are in [RELEASE_HANDOFF.md](RELEASE_HANDOFF.md).
+
 # Deployment runbook (not a deployment claim)
 
 1. Push/review these changes and confirm GitHub Actions passes on the branch that will deploy.
